@@ -1,0 +1,2 @@
+matplotlib
+# Add any other libraries your application uses

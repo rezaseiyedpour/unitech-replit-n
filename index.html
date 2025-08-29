@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unitech3D - 3D Printing Quote Calculator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        header img {
+            max-width: 200px;
+            margin-bottom: 15px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        select, input[type="number"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .preview-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .preview-container img {
+            max-width: 100%;
+            max-height: 300px;
+            border: 1px solid #ddd;
+        }
+        .price-breakdown {
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img src="/public/unitech-3d-logo.png" alt="Unitech3D Logo">
+            <h1>3D Printing Quote Calculator</h1>
+            <p>Upload your STL file and get an instant price quote for 3D printing</p>
+        </header>
+
+        <form id="quoteForm">
+            <div class="form-group">
+                <label for="stlFile">Upload STL File:</label>
+                <input type="file" id="stlFile" name="stl_file" accept=".stl" required>
+            </div>
+
+            <div class="form-group">
+                <label for="material">Material:</label>
+                <select id="material" name="material" required>
+                    <option value="PLA">PLA</option>
+                    <option value="ABS">ABS</option>
+                    <option value="PETG">PETG</option>
+                    <option value="Nylon">Nylon</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="quality">Print Quality:</label>
+                <select id="quality" name="quality" required>
+                    <option value="draft">Draft (Fast)</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High (Detailed)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="infill">Infill Percentage (%):</label>
+                <input type="number" id="infill" name="infill" min="0" max="100" value="20" required>
+            </div>
+
+            <button type="submit">Calculate Price</button>
+        </form>
+
+        <div id="result" class="result">
+            <h2>Quote Result</h2>
+            
+            <div class="preview-container">
+                <h3>Model Preview</h3>
+                <img id="previewImage" src="" alt="STL Preview">
+            </div>
+
+            <div class="price-breakdown">
+                <h3>Price Breakdown</h3>
+                <table>
+                    <tr>
+                        <th>Item</th>
+                        <th>Value</th>
+                    </tr>
+                    <tr>
+                        <td>Volume</td>
+                        <td><span id="volume"></span> mm³</td>
+                    </tr>
+                    <tr>
+                        <td>Weight</td>
+                        <td><span id="weight"></span> g</td>
+                    </tr>
+                    <tr>
+                        <td>Print Time</td>
+                        <td><span id="time"></span> hours</td>
+                    </tr>
+                    <tr>
+                        <td>Material Cost</td>
+                        <td><span id="materialCost"></span> <span class="currency"></span></td>
+                    </tr>
+                    <tr>
+                        <td>Machine Time Cost</td>
+                        <td><span id="timeCost"></span> <span class="currency"></span></td>
+                    </tr>
+                    <tr>
+                        <td>Setup Fee</td>
+                        <td><span id="setupFee"></span> <span class="currency"></span></td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Total Price</td>
+                        <td><span id="totalPrice"></span> <span class="currency"></span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('quoteForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('/calculate', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Display results
+                document.getElementById('result').style.display = 'block';
+                
+                // Update preview image if available
+                if (data.preview_url) {
+                    document.getElementById('previewImage').src = data.preview_url;
+                    document.getElementById('previewImage').style.display = 'block';
+                } else {
+                    document.getElementById('previewImage').style.display = 'none';
+                }
+                
+                // Update price breakdown
+                document.getElementById('volume').textContent = data.volume_mm3;
+                document.getElementById('weight').textContent = data.mass_g;
+                document.getElementById('time').textContent = data.time_hours;
+                document.getElementById('materialCost').textContent = data.material_cost.toLocaleString();
+                document.getElementById('timeCost').textContent = data.time_cost.toLocaleString();
+                document.getElementById('setupFee').textContent = data.setup_fee.toLocaleString();
+                document.getElementById('totalPrice').textContent = data.price.toLocaleString();
+                
+                // Update currency
+                const currencyElements = document.querySelectorAll('.currency');
+                currencyElements.forEach(el => {
+                    el.textContent = data.currency;
+                });
+                
+                // Scroll to results
+                document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error calculating price. Please try again.');
+            });
+        });
+    </script>
+</body>
+</html>
